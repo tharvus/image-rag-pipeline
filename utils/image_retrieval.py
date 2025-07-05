@@ -39,3 +39,21 @@ def read_images(df: pd.DataFrame, output_dir: str):
 
     print(f"Images successfully saved")
     return failed_extractions
+
+def clean_csv(failed_extractions: list, df: pd.DataFrame, path: str = "./pixel_prose.csv"):
+    """
+    Takes in a list of indexes for which an image cannot be saved, and removes those rows from the pandas dataframe df
+
+    Args:
+        failed_extractions: list containing indexes of rows for which image could not be extracted
+        df: Pandas Dataframe of all rows
+        path: an output directory specifying where the data should be saved to
+
+    Return:
+        df: Cleaned dataframe which has rows for which images are already extracted
+    """
+
+    df = df.drop(failed_extractions)
+    df.to_csv(path)
+
+    return df
