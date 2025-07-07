@@ -4,8 +4,10 @@ from qdrant_client.models import PointStruct
 
 client = QdrantClient(url="http://localhost:6333")
 
+# client.delete_collection(collection_name="normal_original_captions")
+
 # initialise collection
 client.create_collection(
-    collection_name="vector-database",
-    vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+    collection_name="normal_original_captions",
+    vectors_config=VectorParams(size=512, distance=Distance.COSINE),
 )
