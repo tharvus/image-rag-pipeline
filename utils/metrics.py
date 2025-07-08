@@ -122,12 +122,18 @@ if __name__ == "__main__":
 
     client = QdrantClient(url="http://localhost:6333")
 
-    df = pd.read_csv("../short_generated_captions.csv")
+    df_short = pd.read_csv("../short_generated_captions.csv")
+    df_long = pd.read_csv("../long_generated_captions.csv")
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     model = BlipModel.from_pretrained("Salesforce/blip-image-captioning-base").to(device)
 
-    avg_mrr = iterate_ds(3, df[:10], "mrr", processor, model, "paraphrased_caption", client, "normal_original_captions", device)
+    datasets = [("Short Captions", df_short), ("Long Captions", df_long)]
+    metrics = ["mrr", "recall@k"]
 
-    print(avg_mrr)
+    for name, df in datasets:
+        for metric in metrics:
+            avg_score = iterate_ds(3, df, metric, processor, model, "paraphrased_caption", client, "normal_original_captions", device)
+            print(f"Average {metric.upper()} for {name}: {avg_score:.4f}")
+    
