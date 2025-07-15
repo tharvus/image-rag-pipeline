@@ -12,42 +12,61 @@ from transformers import ProcessorMixin, PreTrainedModel
 from transformers import BlipProcessor, BlipModel
 
 
-def iterate_ds(k:int, df:pd.DataFrame, metric:str, processor:ProcessorMixin, model:PreTrainedModel, caption_column:str, client:QdrantClient, collection_name:str, device:str="cuda"):
+def iterate_ds(k: int, df: pd.DataFrame, metric: str,
+               processor: ProcessorMixin, model: PreTrainedModel,
+               caption_column: str, client: QdrantClient, collection_name: str,
+               device: str = "cuda",
+               use_spectral: bool = False,
+               spectral_text_embeddings: np.ndarray = None):
+
     """
-    Iterates thru entire dataset, takes each row, processes the caption through a model and depending on the metric chosen, passes it to a relevant function.
+    Iterates through the dataset and computes the metric (MRR or Recall@k) using either:
+    - original text embeddings from model (default)
+    - precomputed spectral text embeddings (if use_spectral=True)
 
     Args:
-        k: int - Number of items to query from the vector db (and thus the number of items from which we want to find the rank)
-        df: pd.DataFrame - A dataframe containing all the rows
-        metric: str - The metric to calculate. Accepts "mrr" or "recall@k"
-        processor: ProcessorMixin - The processor used from tranformers
-        model: PreTrainedModel - The model used from transformers
-        caption_column: str - The column for which caption is to be extracted and converted to an embedding vector
-        client: QdrantClient - Reference to the Qdrant Client so that vector database can be accessed
-        collection_name: str - Name of the Qdrant collection name so that embeddings can be retrieved.
-        device: str - The device name needed for PyTorch to move the model/data to the device if possible. Either "cuda" or "cpu"
-    Return:
-        A float corresponding to the average of a metric
+        k (int): Number of top results to consider in the metric
+        df (pd.DataFrame): Dataset with image-caption pairs
+        metric (str): "mrr" or "recall@k"
+        processor (ProcessorMixin): Tokenizer/processor for text
+        model (PreTrainedModel): BLIP/CLIP model
+        caption_column (str): Column with caption
+        client (QdrantClient): Connection to Qdrant
+        collection_name (str): Name of Qdrant collection
+        device (str): Device to use ("cuda" or "cpu")
+        use_spectral (bool): Whether to use spectral embeddings
+        spectral_text_embeddings (np.ndarray): Precomputed spectral caption embeddings
+
+    Returns:
+        float: Average value of the chosen metric
     """
     total_metric = 0
-    for _, row in df.iterrows():
+
+    for i, (_, row) in enumerate(df.iterrows()):
         try:
             img_id = row["id"]
-            # generate text embeddings
-            caption = row[caption_column]
-            inputs = processor(text=caption, return_tensors="pt", padding=True, truncation=True).to(device)
-            with torch.no_grad():
-                features = model.get_text_features(**inputs)
-            # caption_embeddings = (features / features.norm(p=2, dim=-1, keepdim=True)).cpu().numpy().squeeze()
-            caption_embeddings = features.cpu().numpy().squeeze()
-            
-            # choose a metric
+
+            # Get text embedding
+            if use_spectral:
+                if spectral_text_embeddings is None:
+                    raise ValueError("spectral_text_embeddings must be provided if use_spectral=True")
+                caption_embeddings = spectral_text_embeddings[i]
+            else:
+                caption = row[caption_column]
+                inputs = processor(text=caption, return_tensors="pt", padding=True, truncation=True).to(device)
+                with torch.no_grad():
+                    features = model.get_text_features(**inputs)
+                # caption_embeddings = (features / features.norm(p=2, dim=-1, keepdim=True)).cpu().numpy().squeeze()
+                caption_embeddings = features.cpu().numpy().squeeze()
+
+            # Choose metric
             if metric == "mrr":
                 total_metric += mean_reciprocal_rank(k, caption_embeddings, img_id, client, collection_name)
             elif metric == "recall@k":
                 total_metric += recall_at_k(k, caption_embeddings, img_id, client, collection_name)
+
         except Exception as e:
-            print(f"Exception occurred: {e}")
+            print(f"Exception occurred at row {i}: {e}")
 
     return total_metric / len(df)
 
@@ -119,7 +138,7 @@ def recall_at_k(k:int, caption_embeddings: np.ndarray, id_to_search: int, client
         return 1
     else:
         return 0
-
+    
 if __name__ == "__main__":
 
     client = QdrantClient(url="http://localhost:6333")
