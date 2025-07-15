@@ -30,20 +30,22 @@ def iterate_ds(k:int, df:pd.DataFrame, metric:str, processor:ProcessorMixin, mod
         A float corresponding to the average of a metric
     """
     total_metric = 0
-    for idx, row in df.iterrows():
+    for _, row in df.iterrows():
         try:
+            img_id = row["id"]
             # generate text embeddings
             caption = row[caption_column]
-            inputs = processor(text=caption, return_tensors="pt").to(device)
+            inputs = processor(text=caption, return_tensors="pt", padding=True, truncation=True).to(device)
             with torch.no_grad():
                 features = model.get_text_features(**inputs)
-            caption_embeddings = (features / features.norm(p=2, dim=-1, keepdim=True)).cpu().numpy().squeeze()
+            # caption_embeddings = (features / features.norm(p=2, dim=-1, keepdim=True)).cpu().numpy().squeeze()
+            caption_embeddings = features.cpu().numpy().squeeze()
             
             # choose a metric
             if metric == "mrr":
-                total_metric += mean_reciprocal_rank(k, caption_embeddings, idx, client, collection_name)
+                total_metric += mean_reciprocal_rank(k, caption_embeddings, img_id, client, collection_name)
             elif metric == "recall@k":
-                total_metric += recall_at_k(k, caption_embeddings, idx, client, collection_name)
+                total_metric += recall_at_k(k, caption_embeddings, img_id, client, collection_name)
         except Exception as e:
             print(f"Exception occurred: {e}")
 
