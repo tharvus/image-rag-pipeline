@@ -121,8 +121,6 @@ def recall_at_k(k:int, caption_embeddings: np.ndarray, id_to_search: int, client
 
     id_list = [item.id for item in search_result]
 
-    print(f"  Query ID: {id_to_search}, Top {k} IDs: {id_list}")
-
     if id_to_search in id_list:
         return 1
     else:
@@ -140,7 +138,7 @@ if __name__ == "__main__":
     model_configs = {
         "CLIP": {"id": "openai/clip-vit-base-patch32", "dim": 512},
         "BLIP": {"id": "Salesforce/blip-image-captioning-base", "dim": 768},
-        "SIGLIP": {"id": "google/siglip-base-patch16-224", "dim": 768} # Example SigLIP model
+        "SIGLIP": {"id": "google/siglip-base-patch16-224", "dim": 768}
     }
 
     current_model_name = "CLIP"
@@ -154,7 +152,7 @@ if __name__ == "__main__":
         processor = BlipProcessor.from_pretrained(model_id)
         model = BlipModel.from_pretrained(model_id).to(device)
     elif current_model_name == "SIGLIP":
-        processor = AutoProcessor.from_pretrained(model_id) # SigLIP also uses AutoProcessor
+        processor = AutoProcessor.from_pretrained(model_id)
         model = SiglipModel.from_pretrained(model_id).to(device)
     else:
         raise ValueError("Selected model not configured.")
@@ -170,7 +168,6 @@ if __name__ == "__main__":
     for name, df in datasets:
         for metric in metrics_to_test:
             for k_val in k_values:
-                print(f"\n--- Testing {current_model_name} on {name} for {metric.upper()}@{k_val} ---")
 
                 avg_score_orig = iterate_ds(
                     k_val, df, metric, processor, model, "paraphrased_caption",
