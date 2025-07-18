@@ -37,7 +37,7 @@ def compute_spectral_embedding(image_embeddings, text_embeddings, n_components):
 
     # Add a small value to the diagonal to prevent isolated nodes
     # np.fill_diagonal(A, 1.0 + 1e-9)
-    np.fill_diagonal(A, 1e-6)
+    np.fill_diagonal(A, 1e-12)
 
     # Compute degree matrix D
     # D is a diagonal matrix where D_ii = sum of row i of A

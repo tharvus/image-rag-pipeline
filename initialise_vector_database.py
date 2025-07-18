@@ -19,5 +19,5 @@ def create_collections(dimension):
         # initialise collection
         client.create_collection(
             collection_name="spectral_collection",
-            vectors_config=VectorParams(size=(2 ** (math.floor(math.log2(dimension)))), distance=Distance.COSINE),
+            vectors_config=VectorParams(size=2 ** (math.floor(math.log2(dimension)) - 2), distance=Distance.COSINE),
         )
