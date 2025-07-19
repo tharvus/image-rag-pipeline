@@ -4,8 +4,7 @@ from utils.image_retrieval import read_images, clean_csv
 
 import pandas as pd
 
-# we need to request 500 images
-TOTAL_NUM_IMAGES = 600
+TOTAL_NUM_IMAGES = 1000
 NUM_IMAGES_PER_REQ = 100
 DIR_NAME = "./images"
 CSV_DIR_NAME="./pixel_prose.csv"
@@ -21,7 +20,6 @@ for offset_val in range(0, TOTAL_NUM_IMAGES, 100):
 
 all_data_flattened = [data["row"] for data in all_data]
 df = save_to_csv(all_data_flattened)
-
 
 failed_img_extractions = read_images(df, DIR_NAME)
 print(f"Number of images which failed to extract: {failed_img_extractions}")

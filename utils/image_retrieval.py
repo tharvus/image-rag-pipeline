@@ -22,23 +22,26 @@ def read_images(df: pd.DataFrame, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
 
     # extract image URLs and process
-    all_img_urls = df["url"]
+    all_img_urls = list(df["url"])
     failed_extractions = []
+    print(all_img_urls)
     for i in range(len(all_img_urls)):
         try:
-            response = requests.get(all_img_urls[i])
+            response = requests.get(all_img_urls[i], timeout=10)
+            response.raise_for_status()
             # open image and save
             # convert to RGB 
             img = Image.open(BytesIO(response.content)).convert("RGB")
 
             # save images
-            img.save(os.path.join(output_dir, f"img_{i}.jpg"))
+            img.save(os.path.join(output_dir, f"img_{i+1}.jpg"))
         except Exception as e:
-            print(f"Image {i} could not be downloaded: {e}")
-            failed_extractions.append(i)
+            print(f"Image {i+1} could not be downloaded: {e}")
+            failed_extractions.append(i+1)
+            df.loc[i+1, "is_downloaded"] = False
 
     print(f"Images successfully saved")
-    return failed_extractions
+    return failed_extractions, df
 
 def clean_csv(failed_extractions: list, df: pd.DataFrame, path: str = "./pixel_prose.csv"):
     """
@@ -54,6 +57,6 @@ def clean_csv(failed_extractions: list, df: pd.DataFrame, path: str = "./pixel_p
     """
 
     df = df.drop(failed_extractions)
-    df.to_csv(path)
+    df.to_csv(path, index=False)
 
     return df
