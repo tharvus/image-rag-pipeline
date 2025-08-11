@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 from qdrant_client import QdrantClient
+from sklearn.metrics import average_precision_score, ndcg_score
+from sklearn.neighbors import NearestNeighbors
 import torch
 from transformers import ProcessorMixin, PreTrainedModel
 from transformers import BlipProcessor, BlipModel, CLIPModel, AutoProcessor, SiglipModel # Added SiglipModel, AutoProcessor
@@ -125,6 +127,53 @@ def recall_at_k(k:int, caption_embeddings: np.ndarray, id_to_search: int, client
         return 1
     else:
         return 0
+    
+def calculate_precision_at_k(similarity_matrix, ground_truth, k):
+    """
+    Calculates Precision@K for a given similarity matrix and ground truth.
+    """
+    precision_sum = 0
+    num_queries = similarity_matrix.shape[0]
+
+    for i in range(num_queries):
+        top_k_indices = np.argsort(similarity_matrix[i])[::-1][:k]
+        relevant_items = np.sum(ground_truth[i, top_k_indices])
+        precision_sum += relevant_items / k
+
+    return precision_sum / num_queries
+
+def calculate_ndcg(similarity_matrix, ground_truth):
+    """
+    Calculates Normalized Discounted Cumulative Gain (nDCG).
+    """
+    return ndcg_score(ground_truth, similarity_matrix)
+
+
+def calculate_map(similarity_matrix, ground_truth):
+    """
+    Calculates Mean Average Precision (MAP).
+    """
+    return average_precision_score(ground_truth.ravel(), similarity_matrix.ravel())
+
+
+def calculate_locality_preservation(high_dim_data, low_dim_data, n_neighbors=15):
+    """
+    Calculates a locality-preservation metric by comparing nearest neighbors.
+    """
+    nn_high_dim = NearestNeighbors(n_neighbors=n_neighbors, algorithm='auto').fit(high_dim_data)
+    nn_low_dim = NearestNeighbors(n_neighbors=n_neighbors, algorithm='auto').fit(low_dim_data)
+
+    high_dim_neighbors = nn_high_dim.kneighbors(high_dim_data, return_distance=False)
+    low_dim_neighbors = nn_low_dim.kneighbors(low_dim_data, return_distance=False)
+    
+    overlap_scores = []
+    for i in range(len(high_dim_data)):
+        high_dim_set = set(high_dim_neighbors[i])
+        low_dim_set = set(low_dim_neighbors[i])
+        overlap = len(high_dim_set.intersection(low_dim_set))
+        overlap_scores.append(overlap / n_neighbors)
+    
+    return np.mean(overlap_scores)
     
 if __name__ == "__main__":
 
